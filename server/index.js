@@ -79,19 +79,7 @@ app.post('/api/route', (req, res) => {
         });
 });
 
-
-let points = [
-    {"lat":56.5408573, "lng":20.9090444},
-    {"lat":56.9714549, "lng":24.0591238},
-    {"lat":56.6441733, "lng":23.6417331},
-    {"lat":56.3311733, "lng":23.7517331}
-];
-
-apiDistancesChunked(points)
-    .then(pointDistances => console.log(pointDistances))
-    .catch(err => console.log(err));
-
-// app.listen(port, () => console.log(`Listening on port ${port}`));
+app.listen(port, () => console.log(`Listening on port ${port}`));
 
 /**
  * @param {{}|GoogleMapsClient} googleMapsClient
@@ -236,8 +224,8 @@ function getMatrixFromDistances(pointsDistances) {
             distanceMatrix[pointTo.id][pointTo.id] = 0;
         }
 
-        distanceMatrix[pointFrom.id][pointTo.id] = distance || 0;
-        distanceMatrix[pointTo.id][pointFrom.id] = distance || 0;
+        distanceMatrix[pointFrom.id][pointTo.id] = isNaN(distance) ? 0 : distance;
+        distanceMatrix[pointTo.id][pointFrom.id] = isNaN(distance) ? 0 : distance;
     }
 
     return distanceMatrix;
@@ -305,11 +293,17 @@ function apiDistancesChunked(points) {
             return;
         }
 
+        points.forEach(point => {
+            if (!point.hasOwnProperty('lat') && !point.hasOwnProperty('lng')) {
+                reject('Incorrect data passed');
+            }
+        });
+
         /**
          * @type {Array} [[], [], []]
          */
         let chunkedPoints = chunkArray(points.map((val, i) => {
-            return {...val, pointId: i};
+            return {...val, id: i};
         }));
         let result = [];
 
@@ -329,7 +323,8 @@ function apiDistancesChunked(points) {
         .then(chunkedPoints => {
             return Promise.all(chunkedPoints.map(pointsObject => {
                 return new Promise((resolve, reject) => {
-                    getPointsDistanceBulk(googleMapsClient, pointsObject.pointsFrom, pointsObject.pointsTo)
+                    // getPointsDistanceBulk(googleMapsClient, pointsObject.pointsFrom, pointsObject.pointsTo)
+                    getPointDistancesBulkFake(pointsObject.pointsFrom, pointsObject.pointsTo)
                         .then(distances => {
                             resolve({
                                 ...pointsObject,
@@ -371,7 +366,7 @@ function getPointDistancesBulkFake(pointsFrom, pointsTo) {
                     result[i] = [];
                 }
 
-                result[i][j] = D++;
+                result[i][j] = calcCrow(pointsFrom[i].lat, pointsFrom[i].lng, pointsTo[j].lat, pointsTo[j].lng);
             });
         });
 
@@ -399,4 +394,24 @@ function apiPath(pointDistances) {
             reject(err)
         });
     });
+}
+
+function calcCrow(lat1, lon1, lat2, lon2) {
+    const R = 6371; // km
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    lat1 = toRad(lat1);
+    lat2 = toRad(lat2);
+
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.sin(dLon / 2) * Math.sin(dLon / 2) * Math.cos(lat1) * Math.cos(lat2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const d = R * c;
+    return d;
+}
+
+// Converts numeric degrees to radians
+function toRad(Value)
+{
+    return Value * Math.PI / 180;
 }

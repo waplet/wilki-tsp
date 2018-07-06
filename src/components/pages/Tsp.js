@@ -60,11 +60,20 @@ class Tsp extends Component {
                 })
             });
 
-            if (response.status !== 200) {
-                this.props.onChange({errorMessage: await response.text()});
+            let body = await response.text();
+
+            try {
+                body = JSON.parse(body);
+            } catch (e) {
+                console.error("Not a JSON received");
+                this.props.onChange({errorMessage: body});
                 return;
             }
-            const body = await response.json();
+
+            if (response.status !== 200) {
+                this.props.onChange({errorMessage: body});
+                return;
+            }
 
             this.props.onChange({result: JSON.stringify(body, null, 2)});
         } catch (e) {

@@ -67,10 +67,10 @@ class Map extends Component {
                 })
             });
 
-            let body;
+            let body = await response.text();
 
             try {
-                body = await response.json();
+                body = JSON.parse(body);
             } catch (e) {
                 console.error("Not a JSON received");
                 this.props.onChange({errorMessage: body});
